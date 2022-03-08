@@ -2,6 +2,10 @@ import numpy as np
 import sklearn.model_selection
 from sklearn import preprocessing
 from sklearn import datasets
+def inttod(n,a):
+    o = [0 for i in range(0,n)]
+    o[a] = 1
+    return np.matrix(o)
 def Sigmoid(x):
     return 1/(1+np.exp(-x))
 def dsdx(x):
@@ -18,8 +22,8 @@ def PTEL(ntp,y,step):
             sli = sli + loss(ntp[i][j],y[j])
         if(i % step == 0):
             print("Epoch {} Loss: {}".format(i,sli))
-def CBLoss(network,x,y):
-    return sum([loss(network.FeedForward(np.matrix(x[i])),y[i]) for i in range(0,len(y))])
+def CBLoss(lf,network,x,y):
+    return sum([lf(network.FeedForward(np.matrix(x[i])),y[i]) for i in range(0,len(y))])
 def CBCM(network, x, y,t):
     p = [network.FeedForward(np.matrix(x[i])) > t for i in range(0,len(y))]
     TP = 0
@@ -59,13 +63,11 @@ def Train(network,epochs,trdx,trdy,tedx,a):
 
     return (ntrp, ntep)
 
-def MiniBatchTrain(network,nb,epochs,trdx,trdy,tedx,tedy,a,s):
+def MiniBatchTrain(network,nb,epochs,trdx,trdy,tedx,tedy,lf,a,s):
     #Calculate MiniBatch Starts and Ends
     bs = len(trdy)//nb
-    print(bs)
-    print(len(trdy))
     bse =[i for i in range(0,len(trdy),bs)]
-    el = CBLoss(network,tedx,tedy)
+    el = CBLoss(lf,network,tedx,tedy)
     print(el)
     if(bse[len(bse)-1] != len(trdy)):
         bse.append(len(trdy))
@@ -75,7 +77,7 @@ def MiniBatchTrain(network,nb,epochs,trdx,trdy,tedx,tedy,a,s):
             be = bse[j+1]
             network.FeedBatchBackward(trdx[bs:be],trdy[bs:be],a)
         #Calculate Epoch Loss
-        nel = CBLoss(network,tedx,tedy)
+        nel = CBLoss(lf,network,tedx,tedy)
         if(el - nel < s):
             print("Lim Reached")
             print(el)
@@ -84,7 +86,7 @@ def MiniBatchTrain(network,nb,epochs,trdx,trdy,tedx,tedy,a,s):
         elif(i % (epochs//10) == 0):
             print(i)
             print(nel)
-            CBCM(network,tedx,tedy,0.5)
+            CBLoss(lf,network,tedx,tedy)
         el = nel
 
 

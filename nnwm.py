@@ -3,8 +3,11 @@ import sklearn.model_selection
 from sklearn import preprocessing
 from sklearn import datasets
 import mlutils
-x, y = datasets.make_moons(1000, noise=0.01)
+
+x,y = datasets.make_blobs(n_samples=1000, n_features=3, centers=4)
+y=[mlutils.inttod(4,y[i]) for i in range(0,len(y))]
 x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(x,y,test_size=0.1)
+
 def Sanitise(x):
     if(x.shape == (1,1)):
         return x[0,0]
@@ -81,11 +84,13 @@ class NetworkLayer(Network):
             dodi = self.dodi(self.CalculateInput(x))
             didw = self.didw(x)
             if(np.transpose(np.matrix(dedo)).shape != self.b.shape):
-                print(dedo.shape)
-                print(self.b.shape)
+                print("dedo shape:{}".format(dedo.shape))
+                print("b shape:{}".format(self.b.shape))
                 raise (NameError("b shape change"))
             if(dedo.shape == () and dodi.shape == (1,1)):
                 wd = dedo * dodi[0,0] * didw
+            elif(dedo.shape[0] == dodi.shape[0] and didw.shape[1] == dodi.shape[1]):
+                wd = np.transpose(np.matmul(np.multiply(dedo,dodi),np.transpose(didw)))
             else:
                 wd = np.transpose(np.matmul(np.matmul(dedo,dodi),np.transpose(didw)))
             if(wd.shape != self.w.shape):
@@ -106,11 +111,36 @@ class NetworkLayer(Network):
         d = sum(d) * 1/len(y)
         self.w = self.w-d[0,0]
         self.b = self.b-d[0,1]
+#Softmax Layer, using Cross-Entropy Loss Function
+def SoftMax(i):
+    ex = np.exp(i)
+    return ex/sum(ex)
+def dsoftdi(i):
+    #using mult rule with u(x) = e^x and v(x) 1/sum(e^x)
+    ex = np.exp(i)
+    sex = np.sum(np.exp(i))
+    #dvdi = dexdi * dsumdi * din/dsum
+    dvdi = ex * (-sex**-2)
+    dudi = ex
+    u = np.transpose(ex)
+    v = 1/sex
+    return np.matmul(u, dvdi) + v * dudi
+class SoftMaxLayer(NetworkLayer):
+    def __init__(self,si,so):
+        super().__init__(si,so,SoftMax,dsoftdi)
+    def dedo(self,o,act):
+        return np.transpose(-np.log(act))
+def CrossEntropy(p,q):
+    lq = np.log(q)
+    return -(np.sum(np.multiply(p,lq)))
+def MakeSoftMaxNN(si,so,bw,a,dadi,depth):
+    n = SoftMaxLayer(bw,so)
+    for i in range(0,depth-2):
+        n = NetworkLayer(bw,bw,a,dadi,n)
+    return NetworkLayer(si,bw,a,dadi,n)
+n = MakeSoftMaxNN(3,4,6,Sigmoid,dsdx,10)
+mlutils.MiniBatchTrain(n,10,10,x_train,y_train,x_test,y_test,CrossEntropy,0.001,0)
 
-fl = NetworkLayer(4,1,Sigmoid,dsdx)
-n = NetworkLayer(4,4,relu,drdx,fl)
-n2 = NetworkLayer(2,4,relu,drdx,NetworkLayer(4,4,relu,drdx,NetworkLayer(4,4,relu,drdx,NetworkLayer(4,4,relu,drdx,n))))
-mlutils.MiniBatchTrain(n2,10,1000,x_train,y_train,x_test,y_test,0.1,0)
 
 
 
